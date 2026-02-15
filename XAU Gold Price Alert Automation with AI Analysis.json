@@ -1,0 +1,624 @@
+{
+  "name": "XAU Gold Price Alert Automation with AI Analysis",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -160,
+        0
+      ],
+      "id": "77e83a9e-dbc2-4b15-906b-cfd3716638d2",
+      "name": "Schedule Trigger",
+      "notes": "Runs the workflow automatically at a fixed interval to check gold price updates"
+    },
+    {
+      "parameters": {
+        "url": "https://api.twelvedata.com/price?symbol=XAU/USD&apikey=f6be62398937457e853d180a3dfa6e47",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        32,
+        0
+      ],
+      "id": "8d4ea8dd-30d0-48ad-a7db-3bb7a3f2673b",
+      "name": "HTTP Request",
+      "notes": "Fetches the latest XAU/USD gold price from the API provider."
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1balX_V8cxVNjM7jfx3BOW9af0DWL-RNhMSkwhRtoYnY",
+          "mode": "list",
+          "cachedResultName": "XAU Price",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1balX_V8cxVNjM7jfx3BOW9af0DWL-RNhMSkwhRtoYnY/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 878696108,
+          "mode": "list",
+          "cachedResultName": "gold",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1balX_V8cxVNjM7jfx3BOW9af0DWL-RNhMSkwhRtoYnY/edit#gid=878696108"
+        },
+        "options": {
+          "dataLocationOnSheet": {
+            "values": {
+              "rangeDefinition": "detectAutomatically"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        0
+      ],
+      "id": "4aba1806-f7be-4c17-ae4a-4fa13f1c794c",
+      "name": "Get row(s) in sheet",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "s0ITixFyUhj6vEI1",
+          "name": "Google Sheets account"
+        }
+      },
+      "notes": "Retrieves the historical gold price data stored in Google Sheets."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get all the rows from Google Sheets\nconst rows = $input.all();\n\n// If there are no rows yet, return a default\nif (rows.length === 0) {\n  return [{\n    json: {\n      lastPrice: 0,\n      hasHistory: false\n    }\n  }];\n}\n\n// Get the last row (most recent)\nconst lastRow = rows[rows.length - 1].json;\n\n// Return just the last price\nreturn [{\n  json: {\n    lastPrice: parseFloat(lastRow.Price) || 0,\n    lastTimestamp: lastRow.Timestamp || '',\n    hasHistory: true\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "c708695d-fff5-405c-aa03-e1762a4317ba",
+      "name": "Code in JavaScript",
+      "notes": "This code retrieves the most recent price entry from Google Sheets and returns it, or provides a default value if no history exists."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1c17120e-c911-4e31-b38d-8e3c4602f0b7",
+              "name": "Timestamp",
+              "value": "={{ $('Schedule Trigger').first().json.timestamp }}\n",
+              "type": "string"
+            },
+            {
+              "id": "5bfc404f-f15c-4c16-8fd2-2f63c259f434",
+              "name": "Price",
+              "value": "={{ $('HTTP Request').first().json.price }}\n",
+              "type": "number"
+            },
+            {
+              "id": "f10153b9-1916-4e38-86a4-821514f6dea4",
+              "name": "PriceChange",
+              "value": "={{ $('HTTP Request').first().json.price - $json.lastPrice }}\n",
+              "type": "string"
+            },
+            {
+              "id": "a6313718-c224-4f29-8d6b-26240376d0d7",
+              "name": "PercentChange",
+              "value": "={{\n  (\n    ($('HTTP Request').first().json.price - $json.lastPrice)\n    /\n    $json.lastPrice * 100\n  ).toFixed(4)\n}}\n",
+              "type": "string"
+            },
+            {
+              "id": "e948d560-80c3-47f1-b66c-ad417ec807e6",
+              "name": "Currency",
+              "value": "USD",
+              "type": "string"
+            },
+            {
+              "id": "0f649036-5438-473d-9b0b-f937ea4e2571",
+              "name": "Asset",
+              "value": "Gold",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        592,
+        0
+      ],
+      "id": "6fd56333-8144-4e2b-b65b-12c8a7a8eb97",
+      "name": "extract data and calculate change",
+      "notes": "Calculates the price difference and percentage change between the current and last recorded gold price."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9445d1c1-0b0e-416f-8d7e-52254a1a9629",
+              "name": "Alert",
+              "value": "={{  $json.Price > 6000 || $json.Price   < 3000 ||   Math.abs(parseFloat($json.percentChange)) > 2     ? '🚨 ALERT - Significant Gold Move!'     : 'Normal' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1504,
+        0
+      ],
+      "id": "f0c4f485-ab00-43c8-8be3-2276cc4ab1b3",
+      "name": "Add Alert",
+      "alwaysOutputData": false,
+      "notes": "Determines whether the price movement qualifies as a normal update or a significant alert."
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1balX_V8cxVNjM7jfx3BOW9af0DWL-RNhMSkwhRtoYnY",
+          "mode": "list",
+          "cachedResultName": "XAU Price",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1balX_V8cxVNjM7jfx3BOW9af0DWL-RNhMSkwhRtoYnY/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 878696108,
+          "mode": "list",
+          "cachedResultName": "gold",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1balX_V8cxVNjM7jfx3BOW9af0DWL-RNhMSkwhRtoYnY/edit#gid=878696108"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{ $json.Timestamp }}",
+            "Currency": "={{ $json.Currency }}",
+            "Alert": "={{ $json.Alert }}",
+            "Price": "={{ $json.Price }}",
+            "Asset": "={{ $json.Asset }}",
+            "PriceChange": "={{ $json.PriceChange }}",
+            "PercentChange": "={{\n  (\n    Number($('Add Alert').first().json.PriceChange) !== 0\n      ? (\n          (Number($('Add Alert').first().json.PriceChange) /\n           (Number($('Add Alert').first().json.Price) - Number($('Add Alert').first().json.PriceChange))\n          ) * 100\n        ).toFixed(6)\n      : '0.000000'\n  )\n}}\n",
+            "AIAnalysis": "={{ $json.AIAnalysis }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Price",
+              "displayName": "Price",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Currency",
+              "displayName": "Currency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Asset",
+              "displayName": "Asset",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Alert",
+              "displayName": "Alert",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "PriceChange",
+              "displayName": "PriceChange",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "PercentChange",
+              "displayName": "PercentChange",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "AIAnalysis",
+              "displayName": "AIAnalysis",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1696,
+        0
+      ],
+      "id": "c98b512e-2057-4072-afb9-ac7613142a6d",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "s0ITixFyUhj6vEI1",
+          "name": "Google Sheets account"
+        }
+      },
+      "notes": "Saves the new gold price, timestamp, and percentage change into Google Sheets."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "7d4eb992-0f03-4125-b96e-752707a932d0",
+              "leftValue": "={{ $json.Alert }}",
+              "rightValue": "Normal",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1904,
+        0
+      ],
+      "id": "99400ae0-fb8b-46ce-b1e6-caa517e40571",
+      "name": "If",
+      "notes": "Checks whether an alert condition is met before sending a Telegram notification."
+    },
+    {
+      "parameters": {
+        "chatId": "1620752030",
+        "text": "=🚨 GOLD MARKET UPDATE 🚨\n\n━━━━━━━━━━━━━━━━\n💰 Price: {{ $json.Price }} USD\n📊 Change: {{ $json.PercentChange }}%\n⏰ {{ $('Add Alert').first().json.Timestamp }}\n━━━━━━━━━━━━━━━━\n\n{{ \n  $json.PercentChange > 0\n    ? '📈 Bullish Momentum'\n    : $json.PercentChange < 0\n      ? '📉 Bearish Pressure'\n      : '➖ Market Stable'\n}}\n",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2032,
+        -240
+      ],
+      "id": "fbc1a1ab-c5a4-4aef-b394-49af9d95c7f8",
+      "name": "Send a text message",
+      "webhookId": "8ef83915-3540-44ea-a553-1a6befa98752",
+      "credentials": {
+        "telegramApi": {
+          "id": "UtWqiu4vts9xO5By",
+          "name": "Telegram account 3"
+        }
+      },
+      "notes": "Sends a formatted gold price update or alert message to Telegram."
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2224,
+        -224
+      ],
+      "id": "b42dac79-abb2-4295-8849-a61a67ccf185",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "jsCode": "const currentData = $input.first().json;\n\nconst allPrices = $('Get row(s) in sheet').all();\nconst last24 = allPrices.slice(-24);\n\nlet priceHistory = '';\n\nif (last24.length > 0) {\n  priceHistory = last24.map(row => {\n    const data = row.json;\n\n    const timestamp = data.Timestamp;\n    const price = data.Price;\n\n    return `${timestamp}: $${price}`;\n  }).join('\\n');\n} else {\n  priceHistory = 'No historical data available yet.';\n}\n\nreturn [{\n  json: {\n    ...currentData,\n    priceHistory\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        768,
+        0
+      ],
+      "id": "4ff85b8c-f60e-4a71-b4cd-0a3d09f579fa",
+      "name": "Code in JavaScript1",
+      "notes": "This code retrieves the latest gold price data, collects the last 24 historical entries from Google Sheets, formats them into readable text, and returns everything together for further processing (like AI analysis or alerts)."
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4",
+          "mode": "list",
+          "cachedResultName": "GPT-4"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a professional Gold (XAU/USD) price analyst with 10 years of trading experience.\n\nProvide concise, data-driven analysis based strictly on recent price trends and the provided historical data.\n\nAlways structure your response exactly as follows:\n- Trend: [bullish/bearish/neutral] with [percentage change]\n- Key Observation: [most important finding from the 24-hour gold price data]\n- Short-term Outlook: [specific expectation for the next 6–12 hours based on momentum]\n- Risk Level: [low/medium/high] with [brief reason based on volatility or movement strength]\n\nKeep total response under 100 words.\nBe objective and never speculate without clear support from the provided price history.\nFocus only on XAU/USD.\n"
+            },
+            {
+              "content": "=Analyze the following Gold (XAU/USD) price data:\nCurrent Price: {{ $json.Price }}\nPrice Change: {{ $json.PriceChange }} ({{ $json.PercentChange }}%)\n\nRecent 24-Hour Price History:\n{{ $json.priceHistory }}\n"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        944,
+        0
+      ],
+      "id": "1940e504-960e-4aa5-aea1-c67bcbc28f12",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "FOyt8lmzygjunRfj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1c17120e-c911-4e31-b38d-8e3c4602f0b7",
+              "name": "Timestamp",
+              "value": "={{ $('Schedule Trigger').first().json.timestamp }}\n",
+              "type": "string"
+            },
+            {
+              "id": "5bfc404f-f15c-4c16-8fd2-2f63c259f434",
+              "name": "Price",
+              "value": "={{ $('HTTP Request').first().json.price }}\n",
+              "type": "number"
+            },
+            {
+              "id": "f10153b9-1916-4e38-86a4-821514f6dea4",
+              "name": "PriceChange",
+              "value": "={{ $('HTTP Request').first().json.price - $('Code in JavaScript').item.json.lastPrice }}\n",
+              "type": "string"
+            },
+            {
+              "id": "a6313718-c224-4f29-8d6b-26240376d0d7",
+              "name": "PercentChange",
+              "value": "={{\n  (\n    ($('HTTP Request').first().json.price - $('Code in JavaScript').item.json.lastPrice)\n    /\n   $('Code in JavaScript').item.json.lastPrice * 100\n  ).toFixed(4)\n}}\n",
+              "type": "string"
+            },
+            {
+              "id": "e948d560-80c3-47f1-b66c-ad417ec807e6",
+              "name": "Currency",
+              "value": "USD",
+              "type": "string"
+            },
+            {
+              "id": "0f649036-5438-473d-9b0b-f937ea4e2571",
+              "name": "Asset",
+              "value": "Gold",
+              "type": "string"
+            },
+            {
+              "id": "bc4045b7-6e59-43ed-b730-382f43f565a6",
+              "name": "AIAnalysis",
+              "value": "={{ $json.output[0].content[0].text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1296,
+        0
+      ],
+      "id": "e71bc722-53cc-4ea8-b1fe-1c1a73a7b725",
+      "name": "extract data and calculate change2",
+      "notes": "Calculates the price difference and percentage change between the current and last recorded gold price."
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "extract data and calculate change",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "extract data and calculate change": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Alert": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "extract data and calculate change2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "extract data and calculate change2": {
+      "main": [
+        [
+          {
+            "node": "Add Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "b2c7fead-cbca-4d41-be87-9fee04d67723",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "788588a845777cd319fa9655e4e1b96573b8e9b75b00d24b99a8c8193600abe5"
+  },
+  "id": "-zkGijSqRXsq-5zAFvQ3S",
+  "tags": []
+}
